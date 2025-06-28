@@ -438,7 +438,7 @@ def main():
         'name': 'Gaétan DUMAS',
         'phone': '+33 6 33 38 17 90',
         'email': 'gaetan.dumas.3d@gmail.com',
-        'organization': 'Technial Artist - 3D Generalist',
+        'organization': '',
         'url': 'https://linktr.ee/g144hz'
     }
     
@@ -453,7 +453,7 @@ def main():
         'title_font_size': 32,
         'description_font_size': 28,
         # ===== STYLE DU QR CODE =====
-        'qr_style': 'dots',
+        'qr_style': 'rounded',
         # ===== COULEURS =====
         'qr_color': 'green',
         'qr_background': 'white',
