@@ -498,37 +498,6 @@ def main():
     
     if result:
         print("\n✅ QR code généré avec succès !")
-        print("📱 Fonctionnalités du QR code :")
-        print("   • Ajoute automatiquement le contact")
-        print("   • Inclut toutes les informations de contact")
-        print("   • Compatible avec tous les smartphones")
-        print("   • Formatage personnalisé du texte (gras, italique, souligné)")
-        
-        if image_config.get('include_photo_in_qr'):
-            print("\n📷 À propos de la photo dans les contacts :")
-            print("   ⚠️  La photo peut ne pas s'afficher selon l'application :")
-            print("       • iPhone/iOS : Généralement supporté")
-            print("       • Android : Varie selon la version et l'app")
-            print("       • WhatsApp, Gmail : Support limité")
-            print("   💡 Solutions alternatives :")
-            print("       • Ajouter manuellement la photo après import")
-            print("       • Utiliser un format d'image plus petit")
-            print("       • Tester avec différentes apps de contacts")
-        
-        print("\n🎨 Options de formatage ajoutées :")
-        print("   • title_bold: Met le titre en gras")
-        print("   • title_italic: Met le titre en italique")
-        print("   • title_underline: Souligne le titre")
-        print("   • description_bold: Met la description en gras")
-        print("   • description_italic: Met la description en italique")
-        print("   • description_underline: Souligne la description")
-        
-        print("\n💡 Conseils d'utilisation :")
-        print("   • Testez le QR code avec votre téléphone")
-        print("   • Partagez l'image sur vos réseaux sociaux")
-        print("   • Imprimez-la sur vos cartes de visite")
-        print("   • Combinez les effets pour un style unique")
-        print("   • Si la police stylée ne charge pas, la police par défaut sera utilisée")
     else:
         print("❌ Échec de la génération du QR code")
 
