@@ -4,7 +4,7 @@ from PIL import ImageTk, Image
 import os
 
 # Importer les fonctions principales de ton script (à placer dans un module séparé)
-from qrcode_portfolio import generate_qr_contact_image  # Ton script renommé sans le main()
+from generator_qr_contact import generate_qr_contact_image  # Ton script renommé sans le main()
 
 class QRContactApp(tk.Tk):
     def __init__(self):
