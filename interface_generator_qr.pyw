@@ -14,9 +14,9 @@ class QRContactApp(tk.Tk):
         self.configure(bg="white")
 
         self.contact_info = {
-            'name': tk.StringVar(),
-            'phone': tk.StringVar(),
-            'email': tk.StringVar(),
+            'contact Name': tk.StringVar(),
+            'contact Phone': tk.StringVar(),
+            'contact Email': tk.StringVar(),
             'organization': tk.StringVar(),
             'url': tk.StringVar()
         }
