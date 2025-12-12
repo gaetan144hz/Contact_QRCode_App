@@ -5,7 +5,7 @@ Utilise customtkinter avec un thème gradient bleu-violet
 """
 
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, colorchooser
 from PIL import Image, ImageTk
 import qrcode
 from PIL import ImageDraw, ImageFont, ImageColor
@@ -501,18 +501,41 @@ class QRContactApp(ctk.CTk):
             text_color=self.color_text
         ).pack(side="left")
         
-        self.color_var = ctk.StringVar(value="black")
-        color_menu = ctk.CTkOptionMenu(
+        self.color_var = ctk.StringVar(value="#000000")
+        # Mettre à jour le swatch quand la couleur change
+        self.color_var.trace_add('write', self._on_color_var_change)
+
+        # Bouton color chooser et swatch
+        self.color_swatch = ctk.CTkFrame(color_frame, width=24, height=24, corner_radius=6, fg_color=self.color_var.get())
+        self.color_swatch.pack(side="right", padx=(10, 0))
+
+        self.color_hex_entry = ctk.CTkEntry(
             color_frame,
-            values=["black", "blue", "green", "red", "purple"],
-            variable=self.color_var,
+            placeholder_text="#000000",
+            textvariable=self.color_var,
             width=120,
+            height=36,
+            font=ctk.CTkFont(size=13),
+            fg_color=self.color_secondary,
+            border_color=self.color_border,
+            placeholder_text_color=self.color_text_secondary,
+            text_color=self.color_text
+        )
+        self.color_hex_entry.pack(side="right", padx=(10, 0))
+
+        self.color_btn = ctk.CTkButton(
+            color_frame,
+            text="Choisir...",
+            command=self.select_qr_color,
+            width=100,
             fg_color=self.color_accent_dark,
-            button_color=self.color_accent,
-            button_hover_color=self.color_accent_dark,
+            hover_color=self.color_accent,
             text_color="white"
         )
-        color_menu.pack(side="right")
+        self.color_btn.pack(side="right")
+
+        # Initialiser le swatch
+        self._update_color_swatch()
         
         # Boutons d'action
         btn_frame = ctk.CTkFrame(form_inner, fg_color="transparent")
@@ -613,6 +636,33 @@ class QRContactApp(ctk.CTk):
             self.profile_image_path = filepath
             filename = os.path.basename(filepath)
             self.photo_label.configure(text=f"✓ {filename}")
+
+    def select_qr_color(self):
+        """Ouvre le color chooser natif et met à jour la couleur choisie"""
+        try:
+            color = colorchooser.askcolor(title="Choisir la couleur du QR")
+            if color and color[1]:
+                self.color_var.set(color[1])
+                self._update_color_swatch()
+        except Exception:
+            # Ignorer les erreurs du colorchooser
+            pass
+
+    def _on_color_var_change(self, *args):
+        """Callback quand la variable de couleur change (entrée manuelle)."""
+        self._update_color_swatch()
+
+    def _update_color_swatch(self):
+        """Met à jour le swatch de couleur pour refléter la couleur choisie."""
+        color_hex = self.color_var.get() or "#000000"
+        try:
+            # Validate color by converting to rgb
+            rgb = ImageColor.getrgb(color_hex)
+            # If valid, update the swatch
+            self.color_swatch.configure(fg_color=color_hex)
+        except Exception:
+            # Invalid color: use a neutral color and do nothing else
+            self.color_swatch.configure(fg_color=self.color_secondary)
     
     def generate_qr(self):
         """Génère le QR code"""
