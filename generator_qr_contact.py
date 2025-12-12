@@ -1,515 +1,728 @@
 #!/usr/bin/env python3
 """
-Générateur de QR Code pour contact - Version avec formatage de texte
-Crée une image avec titre, description et QR code contenant les données de contact
-Nouvelles options: gras, italique, souligné pour le titre et la description
+Interface GUI pour le générateur de QR Code contact
+Utilise customtkinter avec un thème gradient bleu-violet
 """
 
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
 import qrcode
-from PIL import Image, ImageDraw, ImageFont, ImageColor
+from PIL import ImageDraw, ImageFont, ImageColor
 import io
 import os
+import base64
+from dataclasses import dataclass
+from typing import Optional
+import threading
 
-def create_vcard(name, phone="", email="", organization="", url="", include_photo_in_qr=False, photo_path=None):
-    """
-    Crée une vCard (format standard pour les contacts)
-    Option pour inclure ou non la photo dans le QR code
-    """
-    vcard = f"""BEGIN:VCARD
-VERSION:3.0
-FN:{name}"""
+
+# ===== CLASSES DU GÉNÉRATEUR (simplifiées) =====
+
+@dataclass
+class ContactInfo:
+    name: str
+    phone: str = ""
+    email: str = ""
+    #organization: str = ""
+    url: str = ""
+
+
+@dataclass
+class ImageConfig:
+    title: str = "Mon Contact"
+    description: str = "Scannez ce QR code"
+    output_filename: str = "contact_qr.png"
+    profile_image_path: Optional[str] = None
+    include_photo_in_qr: bool = False
+    qr_style: str = "rounded"
+    qr_color: str = "black"
+    qr_background: str = "white"
+    background_color: str = "white"
+    title_color: str = "black"
+    description_color: str = "gray"
+    title_font_size: int = 32
+    description_font_size: int = 28
+
+
+class VCardGenerator:
+    MAX_PHOTO_SIZE = 2000
+    PHOTO_DIMENSIONS = (96, 96)
     
-    # Ajouter les champs seulement s'ils ne sont pas vides
-    if organization:
-        vcard += f"\nORG:{organization}"
-    if phone:
-        vcard += f"\nTEL;TYPE=CELL:{phone}"  # Spécifier le type de téléphone
-    if email:
-        vcard += f"\nEMAIL;TYPE=INTERNET:{email}"  # Spécifier le type d'email
-    if url:
-        vcard += f"\nURL:{url}"
+    @staticmethod
+    def create(contact: ContactInfo, photo_path: Optional[str] = None, 
+               include_photo: bool = False) -> str:
+        vcard_lines = [
+            "BEGIN:VCARD",
+            "VERSION:3.0",
+            f"FN:{contact.name}"
+        ]
+        
+        #if contact.organization:
+        #    vcard_lines.append(f"ORG:{contact.organization}")
+        if contact.phone:
+            vcard_lines.append(f"TEL;TYPE=CELL:{contact.phone}")
+        if contact.email:
+            vcard_lines.append(f"EMAIL;TYPE=INTERNET:{contact.email}")
+        if contact.url:
+            vcard_lines.append(f"URL:{contact.url}")
+        
+        if include_photo and photo_path and os.path.exists(photo_path):
+            photo_data = VCardGenerator._encode_photo(photo_path)
+            if photo_data:
+                vcard_lines.append(f"PHOTO;ENCODING=b;TYPE=JPEG:{photo_data}")
+        
+        vcard_lines.append("END:VCARD")
+        return "\n".join(vcard_lines)
     
-    # Ajouter la photo seulement si explicitement demandé ET si le fichier existe
-    if include_photo_in_qr and photo_path and os.path.exists(photo_path):
+    @staticmethod
+    def _encode_photo(photo_path: str) -> Optional[str]:
         try:
-            import base64
-            
-            # Optimiser l'image pour la compatibilité maximale
             with Image.open(photo_path) as img:
-                # Convertir en RGB si nécessaire
                 if img.mode in ('RGBA', 'LA', 'P'):
                     img = img.convert('RGB')
                 
-                # Redimensionner à une taille optimale pour vCard (96x96 recommandé)
-                img.thumbnail((96, 96), Image.Resampling.LANCZOS)
-                
-                # Créer une image carrée si nécessaire
+                img.thumbnail(VCardGenerator.PHOTO_DIMENSIONS, Image.Resampling.LANCZOS)
                 width, height = img.size
+                
                 if width != height:
                     size = min(width, height)
                     left = (width - size) // 2
                     top = (height - size) // 2
                     img = img.crop((left, top, left + size, top + size))
-                    img = img.resize((96, 96), Image.Resampling.LANCZOS)
+                    img = img.resize(VCardGenerator.PHOTO_DIMENSIONS, Image.Resampling.LANCZOS)
                 
-                # Sauvegarder en JPEG avec qualité optimisée
-                img_buffer = io.BytesIO()
-                img.save(img_buffer, format='JPEG', quality=75, optimize=True)
-                img_buffer.seek(0)
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=75, optimize=True)
+                photo_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
                 
-                photo_data = img_buffer.getvalue()
-                photo_base64 = base64.b64encode(photo_data).decode('utf-8')
+                if len(photo_base64) > VCardGenerator.MAX_PHOTO_SIZE:
+                    return None
                 
-                # Limite plus stricte pour la compatibilité
-                if len(photo_base64) > 2000:  # Limite augmentée mais raisonnable
-                    print(f"⚠️  Photo trop volumineuse pour le QR code ({len(photo_base64)} caractères)")
-                    print("   Pour une meilleure compatibilité, utilisez une image plus petite")
-                    print("   La photo sera affichée sur l'image mais pas dans le QR code")
-                else:
-                    # Format vCard 3.0 standard pour la photo
-                    vcard += f"\nPHOTO;ENCODING=b;TYPE=JPEG:{photo_base64}"
-                    print(f"✅ Photo ajoutée au QR code ({len(photo_base64)} caractères)")
-                    print("📱 Note: La compatibilité des photos varie selon les applications")
+                return photo_base64
                 
-        except Exception as e:
-            print(f"⚠️  Impossible d'encoder la photo dans le QR code: {e}")
-            print("   La photo sera affichée sur l'image mais pas dans le QR code")
-    
-    vcard += "\nEND:VCARD"
-    return vcard
+        except Exception:
+            return None
 
-def apply_qr_style(qr_img, style="rounded", qr_color="black", qr_background="white"):
-    """
-    Applique un style personnalisé au QR code
-    """
-    if style == "square":
+
+class QRStyler:
+    @staticmethod
+    def apply(qr_img: Image, style: str, bg_color: str) -> Image:
+        if style == "square":
+            return qr_img
+        
+        if style == "rounded":
+            return QRStyler._apply_rounded(qr_img, bg_color)
+        
         return qr_img
     
-    # Convertir en mode RGBA pour les manipulations
-    if qr_img.mode != 'RGBA':
-        qr_img = qr_img.convert('RGBA')
-    
-    width, height = qr_img.size
-    
-    if style == "rounded":
-        # Créer un QR code avec coins arrondis
+    @staticmethod
+    def _apply_rounded(qr_img: Image, bg_color: str) -> Image:
+        if qr_img.mode != 'RGBA':
+            qr_img = qr_img.convert('RGBA')
+        
+        width, height = qr_img.size
         mask = Image.new('L', (width, height), 0)
         mask_draw = ImageDraw.Draw(mask)
         
-        # Coins arrondis pour l'ensemble
-        corner_radius = min(width, height) // 20
-        mask_draw.rounded_rectangle(
-            [0, 0, width-1, height-1], 
-            radius=corner_radius, 
-            fill=255
+        radius = min(width, height) // 20
+        mask_draw.rounded_rectangle([0, 0, width-1, height-1], radius=radius, fill=255)
+        
+        styled = Image.new('RGBA', (width, height), (*ImageColor.getrgb(bg_color), 255))
+        styled.paste(qr_img, (0, 0))
+        styled.putalpha(mask)
+        
+        return styled
+
+
+class FontManager:
+    FONT_PATHS = [
+        "arial.ttf",
+        "/System/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    ]
+    
+    @staticmethod
+    def load(size: int) -> ImageFont:
+        for path in FontManager.FONT_PATHS:
+            try:
+                return ImageFont.truetype(path, size)
+            except:
+                continue
+        return ImageFont.load_default()
+
+
+class ContactQRGenerator:
+    PADDING = 50
+    TITLE_HEIGHT = 80
+    DESC_HEIGHT = 60
+    SPACING = 30
+    PROFILE_SIZE = 120
+    PROFILE_SPACING = 20
+    
+    def __init__(self, contact: ContactInfo, config: ImageConfig):
+        self.contact = contact
+        self.config = config
+    
+    def generate(self) -> Optional[Image.Image]:
+        vcard_data = VCardGenerator.create(
+            self.contact,
+            self.config.profile_image_path,
+            self.config.include_photo_in_qr
         )
         
-        # Appliquer le masque
-        qr_styled = Image.new('RGBA', (width, height), (*ImageColor.getrgb(qr_background), 255))
-        qr_styled.paste(qr_img, (0, 0))
-        qr_styled.putalpha(mask)
+        qr_img = self._create_qr_code(vcard_data)
+        if not qr_img:
+            return None
         
-        return qr_styled
+        return self._compose_final_image(qr_img)
     
-    elif style == "dots":
-        # Effet pointillé (simplifié)
-        return qr_img
-    
-    elif style == "gradient":
-        # Effet dégradé (simplifié)
-        return qr_img
-    
-    return qr_img
-
-def get_font_with_style(base_font_path, size, bold=False, italic=False):
-    """
-    Tente de charger une police avec le style demandé (gras, italique)
-    """
-    font_variations = []
-    
-    # Essayer différentes polices selon le style
-    if bold and italic:
-        font_variations = [
-            "arialbi.ttf",  # Arial Bold Italic
-            "/System/Library/Fonts/Arial Bold Italic.ttf",
-            "/System/Library/Fonts/Helvetica Bold Oblique.ttc",
-            "times.ttf"
-        ]
-    elif bold:
-        font_variations = [
-            "arialbd.ttf",  # Arial Bold
-            "/System/Library/Fonts/Arial Bold.ttf",
-            "/System/Library/Fonts/Helvetica Bold.ttc",
-            "timesbd.ttf"
-        ]
-    elif italic:
-        font_variations = [
-            "ariali.ttf",  # Arial Italic
-            "/System/Library/Fonts/Arial Italic.ttf",
-            "/System/Library/Fonts/Helvetica Oblique.ttc",
-            "timesi.ttf"
-        ]
-    else:
-        font_variations = [
-            "arial.ttf",
-            "/System/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-            "times.ttf"
-        ]
-    
-    # Essayer de charger les polices
-    for font_path in font_variations:
+    def _create_qr_code(self, data: str) -> Optional[Image.Image]:
         try:
-            return ImageFont.truetype(font_path, size)
-        except:
-            continue
-    
-    # Fallback vers la police par défaut
-    print(f"⚠️  Impossible de charger la police avec le style demandé, utilisation de la police par défaut")
-    return ImageFont.load_default()
-
-def draw_text_with_effects(draw, text, position, font, color, underline=False, background_color="white"):
-    """
-    Dessine du texte avec des effets optionnels (souligné)
-    """
-    x, y = position
-    
-    # Dessiner le texte
-    draw.text((x, y), text, fill=color, font=font)
-    
-    # Ajouter un soulignement si demandé
-    if underline:
-        # Calculer les dimensions du texte
-        bbox = draw.textbbox((x, y), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        
-        # Dessiner la ligne de soulignement
-        underline_y = y + text_height + 2
-        draw.line([(x, underline_y), (x + text_width, underline_y)], fill=color, width=2)
-
-def generate_qr_contact_image(
-    name,
-    phone="",
-    email="",
-    organization="",
-    url="",
-    title="Mon Contact",
-    description="Scannez ce QR code pour ajouter mes informations de contact",
-    output_filename="contact_qr.png",
-    qr_color="black",
-    qr_background="white",
-    background_color="white",
-    title_color="black",
-    description_color="gray",
-    profile_image_path=None,
-    title_font_size=24,
-    description_font_size=16,
-    qr_style="rounded",
-    include_photo_in_qr=False,
-    # NOUVELLES OPTIONS DE FORMATAGE
-    title_bold=False,
-    title_italic=False,
-    title_underline=False,
-    description_bold=False,
-    description_italic=False,
-    description_underline=False
-):
-    """
-    Génère une image complète avec titre, description et QR code de contact
-    Nouvelles options de formatage pour le titre et la description
-    """
-    
-    print(f"Génération du QR code pour: {name}")
-    
-    # Afficher les options de formatage
-    title_styles = []
-    if title_bold: title_styles.append("gras")
-    if title_italic: title_styles.append("italique")
-    if title_underline: title_styles.append("souligné")
-    
-    desc_styles = []
-    if description_bold: desc_styles.append("gras")
-    if description_italic: desc_styles.append("italique")
-    if description_underline: desc_styles.append("souligné")
-    
-    if title_styles:
-        print(f"🎨 Style du titre: {', '.join(title_styles)}")
-    if desc_styles:
-        print(f"🎨 Style de la description: {', '.join(desc_styles)}")
-    
-    # Créer la vCard
-    vcard_data = create_vcard(
-        name, phone, email, organization, url, 
-        include_photo_in_qr=include_photo_in_qr,
-        photo_path=profile_image_path
-    )
-    
-    print(f"Taille des données vCard: {len(vcard_data)} caractères")
-    
-    # Générer le QR code avec gestion d'erreur améliorée
-    try:
-        qr = qrcode.QRCode(
-            version=1,  # Commencer avec la version 1
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=8,
-            border=4,
-        )
-        qr.add_data(vcard_data)
-        
-        # Essayer de générer avec fit=True
-        try:
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=8,
+                border=4,
+            )
+            qr.add_data(data)
             qr.make(fit=True)
-        except ValueError as e:
-            if "Invalid version" in str(e):
-                print("⚠️  Données trop volumineuses pour un QR code standard")
-                print("   Génération sans photo dans le QR code...")
-                
-                # Recréer la vCard sans photo
-                vcard_data = create_vcard(
-                    name, phone, email, organization, url, 
-                    include_photo_in_qr=False,
-                    photo_path=None
-                )
-                
-                # Recréer le QR code
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_M,
-                    box_size=8,
-                    border=4,
-                )
-                qr.add_data(vcard_data)
-                qr.make(fit=True)
-            else:
-                raise e
-        
-    except Exception as e:
-        print(f"❌ Erreur lors de la génération du QR code: {e}")
-        return None
-    
-    # Créer l'image du QR code
-    qr_img = qr.make_image(fill_color=qr_color, back_color=qr_background)
-    
-    # Appliquer le style si demandé
-    if qr_style != "square":
-        qr_img = apply_qr_style(qr_img, qr_style, qr_color, qr_background)
-    
-    qr_size = qr_img.size[0]
-    
-    # Dimensions de l'image finale
-    padding = 50
-    title_height = 80
-    desc_height = 60
-    spacing = 30
-    profile_size = 120
-    profile_spacing = 20
-    
-    # Calculer les dimensions
-    has_profile = profile_image_path is not None and os.path.exists(profile_image_path)
-    extra_height = (profile_size + profile_spacing) if has_profile else 0
-    
-    # Ajouter de l'espace pour les soulignements
-    title_underline_space = 10 if title_underline else 0
-    desc_underline_space = 10 if description_underline else 0
-    
-    total_width = max(qr_size + (padding * 2), profile_size + (padding * 2), 400)
-    total_height = qr_size + title_height + desc_height + (spacing * 2) + (padding * 2) + extra_height + title_underline_space + desc_underline_space
-    
-    # Créer l'image finale
-    final_img = Image.new('RGB', (total_width, total_height), background_color)
-    draw = ImageDraw.Draw(final_img)
-    
-    # Charger les polices avec les styles appropriés
-    title_font = get_font_with_style("arial.ttf", title_font_size, title_bold, title_italic)
-    desc_font = get_font_with_style("arial.ttf", description_font_size, description_bold, description_italic)
-    
-    current_y = padding
-    
-    # Afficher la photo de profil si fournie
-    if has_profile:
-        try:
-            profile_img = Image.open(profile_image_path)
             
-            # Redimensionner en gardant les proportions et en remplissant tout l'espace
-            # Calculer le ratio pour remplir complètement le cercle
-            img_width, img_height = profile_img.size
-            ratio = max(profile_size / img_width, profile_size / img_height)
-            new_width = int(img_width * ratio)
-            new_height = int(img_height * ratio)
-            
-            # Redimensionner l'image
-            profile_img = profile_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
-            # Créer une image carrée et centrer la photo redimensionnée
-            square_img = Image.new('RGB', (profile_size, profile_size), background_color)
-            
-            # Centrer l'image (crop si nécessaire)
-            x_offset = (profile_size - new_width) // 2
-            y_offset = (profile_size - new_height) // 2
-            
-            # Si l'image est plus grande que le carré, on la recadre
-            if new_width > profile_size or new_height > profile_size:
-                left = max(0, (new_width - profile_size) // 2)
-                top = max(0, (new_height - profile_size) // 2)
-                right = left + profile_size
-                bottom = top + profile_size
-                profile_img = profile_img.crop((left, top, right, bottom))
-                x_offset = 0
-                y_offset = 0
-            
-            square_img.paste(profile_img, (x_offset, y_offset))
-            
-            # Créer le masque circulaire
-            mask = Image.new('L', (profile_size, profile_size), 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.ellipse((0, 0, profile_size, profile_size), fill=255)
-            
-            # Appliquer le masque circulaire
-            square_img.putalpha(mask)
-            
-            # Positionner la photo
-            profile_x = (total_width - profile_size) // 2
-            profile_y = current_y
-            
-            # Créer une image temporaire avec le fond pour bien coller la photo avec transparence
-            temp_img = Image.new('RGB', (profile_size, profile_size), background_color)
-            if square_img.mode == 'RGBA':
-                temp_img.paste(square_img, (0, 0), square_img)
-            else:
-                temp_img.paste(square_img, (0, 0))
-            
-            # Coller la photo circulaire
-            final_img.paste(temp_img, (profile_x, profile_y))
-            
-            # Optionnel : Dessiner un cercle de bordure pour un effet plus net
-            circle_draw = ImageDraw.Draw(final_img)
-            circle_draw.ellipse(
-                [profile_x-1, profile_y-1, profile_x + profile_size+1, profile_y + profile_size+1],
-                outline=title_color, width=2
+            qr_img = qr.make_image(
+                fill_color=self.config.qr_color,
+                back_color=self.config.qr_background
             )
             
-            current_y += profile_size + profile_spacing
+            return QRStyler.apply(qr_img, self.config.qr_style, self.config.qr_background)
             
+        except Exception:
+            return None
+    
+    def _compose_final_image(self, qr_img: Image) -> Image.Image:
+        qr_size = qr_img.size[0]
+        
+        has_profile = (self.config.profile_image_path and 
+                      os.path.exists(self.config.profile_image_path))
+        extra_height = (self.PROFILE_SIZE + self.PROFILE_SPACING) if has_profile else 0
+        
+        width = max(qr_size + (self.PADDING * 2), 400)
+        height = (qr_size + self.TITLE_HEIGHT + self.DESC_HEIGHT + 
+                 (self.SPACING * 2) + (self.PADDING * 2) + extra_height)
+        
+        img = Image.new('RGB', (width, height), self.config.background_color)
+        draw = ImageDraw.Draw(img)
+        
+        title_font = FontManager.load(self.config.title_font_size)
+        desc_font = FontManager.load(self.config.description_font_size)
+        
+        current_y = self.PADDING
+        
+        if has_profile:
+            current_y = self._add_profile_photo(img, current_y)
+        
+        current_y = self._add_centered_text(
+            draw, self.config.title, current_y, 
+            title_font, self.config.title_color, width
+        )
+        current_y += self.TITLE_HEIGHT
+        
+        current_y = self._add_centered_text(
+            draw, self.config.description, current_y,
+            desc_font, self.config.description_color, width
+        )
+        current_y += self.DESC_HEIGHT + self.SPACING
+        
+        self._add_qr_code(img, qr_img, current_y, width)
+        
+        return img
+    
+    def _add_profile_photo(self, img: Image, y_pos: int) -> int:
+        try:
+            profile = Image.open(self.config.profile_image_path)
+            profile = self._prepare_circular_photo(profile)
+            
+            x_pos = (img.width - self.PROFILE_SIZE) // 2
+            
+            temp = Image.new('RGB', (self.PROFILE_SIZE, self.PROFILE_SIZE), 
+                           self.config.background_color)
+            if profile.mode == 'RGBA':
+                temp.paste(profile, (0, 0), profile)
+            else:
+                temp.paste(profile, (0, 0))
+            
+            img.paste(temp, (x_pos, y_pos))
+            
+            draw = ImageDraw.Draw(img)
+            draw.ellipse(
+                [x_pos-1, y_pos-1, x_pos + self.PROFILE_SIZE+1, y_pos + self.PROFILE_SIZE+1],
+                outline=self.config.title_color, width=2
+            )
+            
+            return y_pos + self.PROFILE_SIZE + self.PROFILE_SPACING
+            
+        except Exception:
+            return y_pos
+    
+    def _prepare_circular_photo(self, img: Image) -> Image:
+        ratio = max(self.PROFILE_SIZE / img.width, self.PROFILE_SIZE / img.height)
+        new_size = (int(img.width * ratio), int(img.height * ratio))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+        
+        left = (img.width - self.PROFILE_SIZE) // 2
+        top = (img.height - self.PROFILE_SIZE) // 2
+        img = img.crop((left, top, left + self.PROFILE_SIZE, top + self.PROFILE_SIZE))
+        
+        mask = Image.new('L', (self.PROFILE_SIZE, self.PROFILE_SIZE), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, self.PROFILE_SIZE, self.PROFILE_SIZE), fill=255)
+        img.putalpha(mask)
+        
+        return img
+    
+    def _add_centered_text(self, draw: ImageDraw, text: str, y_pos: int,
+                          font: ImageFont, color: str, width: int) -> int:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        x_pos = (width - text_width) // 2
+        draw.text((x_pos, y_pos), text, fill=color, font=font)
+        return y_pos
+    
+    def _add_qr_code(self, img: Image, qr_img: Image, y_pos: int, width: int):
+        qr_size = qr_img.size[0]
+        x_pos = (width - qr_size) // 2
+        
+        if qr_img.mode == 'RGBA':
+            bg = Image.new('RGB', qr_img.size, self.config.qr_background)
+            bg.paste(qr_img, (0, 0), qr_img)
+            qr_img = bg
+        elif qr_img.mode != 'RGB':
+            qr_img = qr_img.convert('RGB')
+        
+        img.paste(qr_img, (x_pos, y_pos))
+
+
+# ===== INTERFACE GUI =====
+
+class GradientFrame(ctk.CTkFrame):
+    """Frame avec gradient bleu-violet"""
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.configure(fg_color="transparent")
+
+
+class QRContactApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        
+        # Configuration de la fenêtre
+        self.title("QR Contact Generator")
+        self.geometry("900x800")
+        
+        # Thème customtkinter en mode clair
+        ctk.set_appearance_mode("light")
+        ctk.set_default_color_theme("blue")
+        
+        # Variables
+        self.profile_image_path = None
+        self.preview_image = None
+        self.generated_qr = None
+        
+        # Palette harmonieuse de couleurs claires
+        self.color_primary = "#e0f2fe"  # Bleu ciel très clair
+        self.color_secondary = "#f0f9ff"  # Bleu glacier
+        self.color_accent = "#7dd3fc"  # Bleu ciel
+        self.color_accent_dark = "#38bdf8"  # Bleu vif
+        self.color_bg = "#f8fafc"  # Gris très clair
+        self.color_card = "#ffffff"  # Blanc
+        self.color_text = "#0f172a"  # Gris très foncé
+        self.color_text_secondary = "#475569"  # Gris moyen
+        self.color_border = "#e2e8f0"  # Gris clair
+        self.color_success = "#86efac"  # Vert clair
+        self.color_success_dark = "#22c55e"  # Vert
+        
+        self.configure(fg_color=self.color_bg)
+        
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Container principal avec scrollbar
+        main_container = ctk.CTkScrollableFrame(
+            self,
+            fg_color="transparent"
+        )
+        main_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Titre principal
+        title_frame = ctk.CTkFrame(main_container, fg_color=self.color_card, corner_radius=15, border_width=2, border_color=self.color_border)
+        title_frame.pack(fill="x", pady=(0, 20))
+        
+        title_label = ctk.CTkLabel(
+            title_frame,
+            text="🎨 Générateur de QR Code Contact",
+            font=ctk.CTkFont(size=28, weight="bold"),
+            text_color=self.color_text
+        )
+        title_label.pack(pady=20)
+        
+        # Conteneur à deux colonnes
+        content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True)
+        
+        # Colonne gauche - Formulaire
+        left_frame = ctk.CTkFrame(content_frame, fg_color=self.color_card, corner_radius=15, border_width=2, border_color=self.color_border)
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        self.create_form(left_frame)
+        
+        # Colonne droite - Prévisualisation
+        right_frame = ctk.CTkFrame(content_frame, fg_color=self.color_card, corner_radius=15, border_width=2, border_color=self.color_border)
+        right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        
+        self.create_preview(right_frame)
+    
+    def create_form(self, parent):
+        """Crée le formulaire de saisie"""
+        form_inner = ctk.CTkFrame(parent, fg_color="transparent")
+        form_inner.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Section Contact
+        section_label = ctk.CTkLabel(
+            form_inner,
+            text="📇 Informations de Contact",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.color_text
+        )
+        section_label.pack(anchor="w", pady=(0, 15))
+        
+        # Nom
+        self.name_entry = self.create_input(form_inner, "👤 Nom complet *", "Jean Dupont")
+        
+        # Téléphone
+        self.phone_entry = self.create_input(form_inner, "📱 Téléphone", "+33 6 12 34 56 78")
+        
+        # Email
+        self.email_entry = self.create_input(form_inner, "📧 Email", "email@exemple.com")
+        
+        # Organisation REWORK THIS PART FOR IPHONE BECAUSE IT DOESN'T SUPPORT ORG FIELD WELL
+        #self.org_entry = self.create_input(form_inner, "🏢 Organisation", "Mon Entreprise")
+        
+        # URL
+        self.url_entry = self.create_input(form_inner, "🌐 Site web", "https://exemple.com")
+        
+        # Section Personnalisation
+        ctk.CTkLabel(
+            form_inner,
+            text="🎨 Personnalisation",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.color_text
+        ).pack(anchor="w", pady=(20, 15))
+        
+        # Titre
+        self.title_entry = self.create_input(form_inner, "✏️ Titre", "Mon Contact")
+        
+        # Description
+        self.desc_entry = self.create_input(form_inner, "📝 Description", "Scannez pour ajouter")
+        
+        # Photo de profil
+        photo_frame = ctk.CTkFrame(form_inner, fg_color="transparent")
+        photo_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            photo_frame,
+            text="📷 Photo de profil",
+            font=ctk.CTkFont(size=14),
+            text_color=self.color_text
+        ).pack(side="left")
+        
+        self.photo_btn = ctk.CTkButton(
+            photo_frame,
+            text="Choisir",
+            command=self.select_photo,
+            width=100,
+            fg_color=self.color_accent_dark,
+            hover_color=self.color_accent,
+            text_color="white"
+        )
+        self.photo_btn.pack(side="right")
+        
+        self.photo_label = ctk.CTkLabel(
+            form_inner,
+            text="Aucune photo",
+            font=ctk.CTkFont(size=11),
+            text_color=self.color_text_secondary
+        )
+        self.photo_label.pack(anchor="w", pady=(0, 10))
+        
+        # Inclure photo dans QR
+        self.include_photo_var = ctk.BooleanVar(value=False)
+        self.include_photo_check = ctk.CTkCheckBox(
+            form_inner,
+            text="Inclure la photo dans le QR code",
+            variable=self.include_photo_var,
+            font=ctk.CTkFont(size=12),
+            text_color=self.color_text,
+            fg_color=self.color_accent_dark,
+            hover_color=self.color_accent
+        )
+        self.include_photo_check.pack(anchor="w", pady=(0, 10))
+        
+        # Style QR
+        style_frame = ctk.CTkFrame(form_inner, fg_color="transparent")
+        style_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            style_frame,
+            text="🎭 Style QR",
+            font=ctk.CTkFont(size=14),
+            text_color=self.color_text
+        ).pack(side="left")
+        
+        self.style_var = ctk.StringVar(value="rounded")
+        style_menu = ctk.CTkOptionMenu(
+            style_frame,
+            values=["rounded", "square"],
+            variable=self.style_var,
+            width=120,
+            fg_color=self.color_accent_dark,
+            button_color=self.color_accent,
+            button_hover_color=self.color_accent_dark,
+            text_color="white"
+        )
+        style_menu.pack(side="right")
+        
+        # Couleur QR
+        color_frame = ctk.CTkFrame(form_inner, fg_color="transparent")
+        color_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            color_frame,
+            text="🎨 Couleur QR",
+            font=ctk.CTkFont(size=14),
+            text_color=self.color_text
+        ).pack(side="left")
+        
+        self.color_var = ctk.StringVar(value="black")
+        color_menu = ctk.CTkOptionMenu(
+            color_frame,
+            values=["black", "blue", "green", "red", "purple"],
+            variable=self.color_var,
+            width=120,
+            fg_color=self.color_accent_dark,
+            button_color=self.color_accent,
+            button_hover_color=self.color_accent_dark,
+            text_color="white"
+        )
+        color_menu.pack(side="right")
+        
+        # Boutons d'action
+        btn_frame = ctk.CTkFrame(form_inner, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=(30, 0))
+        
+        self.generate_btn = ctk.CTkButton(
+            btn_frame,
+            text="✨ Générer le QR Code",
+            command=self.generate_qr,
+            height=50,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.color_success_dark,
+            hover_color=self.color_success,
+            text_color="white"
+        )
+        self.generate_btn.pack(fill="x", pady=(0, 10))
+        
+        self.save_btn = ctk.CTkButton(
+            btn_frame,
+            text="💾 Sauvegarder",
+            command=self.save_qr,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            fg_color=self.color_accent_dark,
+            hover_color=self.color_accent,
+            text_color="white",
+            state="disabled"
+        )
+        self.save_btn.pack(fill="x")
+    
+    def create_input(self, parent, label, placeholder):
+        """Crée un champ de saisie avec label"""
+        label_widget = ctk.CTkLabel(
+            parent,
+            text=label,
+            font=ctk.CTkFont(size=14),
+            text_color=self.color_text,
+            anchor="w"
+        )
+        label_widget.pack(fill="x", pady=(10, 5))
+        
+        entry = ctk.CTkEntry(
+            parent,
+            placeholder_text=placeholder,
+            height=40,
+            font=ctk.CTkFont(size=13),
+            fg_color=self.color_secondary,
+            border_color=self.color_border,
+            placeholder_text_color=self.color_text_secondary,
+            text_color=self.color_text
+        )
+        entry.pack(fill="x", pady=(0, 5))
+        
+        return entry
+    
+    def create_preview(self, parent):
+        """Crée la zone de prévisualisation"""
+        preview_inner = ctk.CTkFrame(parent, fg_color="transparent")
+        preview_inner.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(
+            preview_inner,
+            text="👁️ Prévisualisation",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.color_text
+        ).pack(pady=(0, 20))
+        
+        # Zone d'affichage
+        self.preview_frame = ctk.CTkFrame(
+            preview_inner,
+            fg_color=self.color_secondary,
+            corner_radius=10,
+            border_width=2,
+            border_color=self.color_border,
+            height=500
+        )
+        self.preview_frame.pack(fill="both", expand=True)
+        
+        self.preview_label = ctk.CTkLabel(
+            self.preview_frame,
+            text="Le QR code apparaîtra ici\n\n✨",
+            font=ctk.CTkFont(size=16),
+            text_color=self.color_text_secondary
+        )
+        self.preview_label.pack(expand=True)
+    
+    def select_photo(self):
+        """Sélectionne une photo de profil"""
+        filepath = filedialog.askopenfilename(
+            title="Choisir une photo",
+            filetypes=[
+                ("Images", "*.png *.jpg *.jpeg *.gif *.bmp"),
+                ("Tous les fichiers", "*.*")
+            ]
+        )
+        
+        if filepath:
+            self.profile_image_path = filepath
+            filename = os.path.basename(filepath)
+            self.photo_label.configure(text=f"✓ {filename}")
+    
+    def generate_qr(self):
+        """Génère le QR code"""
+        # Validation
+        name = self.name_entry.get().strip()
+        if not name:
+            messagebox.showerror("Erreur", "Le nom est obligatoire !")
+            return
+        
+        # Désactiver le bouton pendant la génération
+        self.generate_btn.configure(state="disabled", text="⏳ Génération...")
+        
+        # Générer dans un thread séparé
+        thread = threading.Thread(target=self._generate_qr_thread, args=(name,))
+        thread.start()
+    
+    def _generate_qr_thread(self, name):
+        """Génère le QR code dans un thread"""
+        try:
+            # Créer la configuration
+            contact = ContactInfo(
+                name=name,
+                phone=self.phone_entry.get().strip(),
+                email=self.email_entry.get().strip(),
+                #organization=self.org_entry.get().strip(),
+                url=self.url_entry.get().strip()
+            )
+            
+            config = ImageConfig(
+                title=self.title_entry.get().strip() or "Mon Contact",
+                description=self.desc_entry.get().strip() or "Scannez ce QR code",
+                profile_image_path=self.profile_image_path,
+                include_photo_in_qr=self.include_photo_var.get(),
+                qr_style=self.style_var.get(),
+                qr_color=self.color_var.get(),
+                title_color=self.color_var.get(),
+                description_color=self.color_var.get()
+            )
+            
+            # Générer
+            generator = ContactQRGenerator(contact, config)
+            result = generator.generate()
+            
+            if result:
+                self.generated_qr = result
+                self._update_preview(result)
+                self.after(0, lambda: self._generation_complete(True))
+            else:
+                self.after(0, lambda: self._generation_complete(False))
+                
         except Exception as e:
-            print(f"⚠️  Erreur lors du chargement de la photo: {e}")
+            self.after(0, lambda: messagebox.showerror("Erreur", f"Erreur: {str(e)}"))
+            self.after(0, lambda: self._generation_complete(False))
     
-    # Dessiner le titre avec effets
-    title_bbox = draw.textbbox((0, 0), title, font=title_font)
-    title_width = title_bbox[2] - title_bbox[0]
-    title_x = (total_width - title_width) // 2
-    draw_text_with_effects(draw, title, (title_x, current_y), title_font, title_color, title_underline, background_color)
-    current_y += title_height + title_underline_space
+    def _update_preview(self, img):
+        """Met à jour la prévisualisation"""
+        # Redimensionner pour l'affichage
+        display_img = img.copy()
+        display_img.thumbnail((450, 450), Image.Resampling.LANCZOS)
+        
+        # Convertir pour tkinter
+        photo = ImageTk.PhotoImage(display_img)
+        
+        # Mettre à jour l'affichage
+        self.preview_label.configure(image=photo, text="")
+        self.preview_label.image = photo  # Garder une référence
     
-    # Dessiner la description avec effets
-    desc_bbox = draw.textbbox((0, 0), description, font=desc_font)
-    desc_width = desc_bbox[2] - desc_bbox[0]
-    desc_x = (total_width - desc_width) // 2
-    draw_text_with_effects(draw, description, (desc_x, current_y), desc_font, description_color, description_underline, background_color)
-    current_y += desc_height + spacing + desc_underline_space
+    def _generation_complete(self, success):
+        """Appelé après la génération"""
+        if success:
+            self.generate_btn.configure(state="normal", text="✨ Générer le QR Code")
+            self.save_btn.configure(state="normal")
+            messagebox.showinfo("Succès", "QR code généré avec succès ! ✅")
+        else:
+            self.generate_btn.configure(state="normal", text="✨ Générer le QR Code")
+            messagebox.showerror("Erreur", "Échec de la génération")
     
-    # Coller le QR code
-    qr_x = (total_width - qr_size) // 2
-    qr_y = current_y
-    
-    # Convertir le QR code au bon format si nécessaire
-    if qr_img.mode == 'RGBA':
-        qr_with_bg = Image.new('RGB', qr_img.size, qr_background)
-        qr_with_bg.paste(qr_img, (0, 0), qr_img)
-        qr_img = qr_with_bg
-    elif qr_img.mode != 'RGB':
-        qr_img = qr_img.convert('RGB')
-    
-    final_img.paste(qr_img, (qr_x, qr_y))
-    
-    # Sauvegarder l'image
-    final_img.save(output_filename, 'PNG', quality=95)
-    print(f"✅ Image sauvegardée: {output_filename}")
-    
-    return final_img
+    def save_qr(self):
+        """Sauvegarde le QR code"""
+        if not self.generated_qr:
+            return
+        
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG", "*.png"), ("JPEG", "*.jpg"), ("Tous", "*.*")],
+            initialfile="contact_qr.png"
+        )
+        
+        if filepath:
+            try:
+                self.generated_qr.save(filepath, quality=95)
+                messagebox.showinfo("Succès", f"Image sauvegardée :\n{filepath}")
+            except Exception as e:
+                messagebox.showerror("Erreur", f"Erreur de sauvegarde : {str(e)}")
+
 
 def main():
-    """
-    Fonction principale - configurez vos informations ici
-    """
-    
-    # ========== CONFIGUREZ VOS INFORMATIONS ICI ==========
-    contact_info = {
-        'name': 'Gaétan DUMAS',
-        'phone': '+33 6 33 38 17 90',
-        'email': 'gaetan.dumas.3d@gmail.com',
-        'organization': '',
-        'url': 'https://linktr.ee/g144hz'
-    }
-    
-    image_config = {
-        'title': 'Gaétan DUMAS',
-        'description': 'Technical Artist - 3D Generalist',
-        'output_filename': 'mon_contact_qr.png',
-        # ===== PHOTO DE PROFIL =====
-        'profile_image_path': r'C:\Users\gaeta\Documents\Repos\Portfolio_QRCode\Kodim17_noisy.jpg',
-        'include_photo_in_qr': True,  # NOUVEAU: Contrôle si la photo est dans le QR code
-        # ===== TAILLES DE POLICE =====
-        'title_font_size': 32,
-        'description_font_size': 28,
-        # ===== STYLE DU QR CODE =====
-        'qr_style': 'rounded',
-        # ===== COULEURS =====
-        'qr_color': 'green',
-        'qr_background': 'white',
-        'background_color': 'white',
-        'title_color': 'green',
-        'description_color': 'green',
-        # ===== NOUVELLES OPTIONS DE FORMATAGE DE TEXTE =====
-        'title_bold': True,          # Titre en gras
-        'title_italic': False,       # Titre en italique
-        'title_underline': False,     # Titre souligné
-        'description_bold': False,   # Description en gras
-        'description_italic': True,  # Description en italique
-        'description_underline': False  # Description soulignée
-    }
-    # =====================================================
-    
-    print("🔄 Génération du QR code de contact...")
-    print(f"📇 Nom: {contact_info['name']}")
-    print(f"📞 Téléphone: {contact_info['phone']}")
-    print(f"📧 Email: {contact_info['email']}")
-    print(f"🏢 Organisation: {contact_info['organization']}")
-    print(f"🌐 Site web: {contact_info['url']}")
-    
-    # Vérifier la photo
-    profile_path = image_config.get('profile_image_path')
-    if profile_path and os.path.exists(profile_path):
-        print(f"📷 Photo de profil: {profile_path}")
-        if image_config.get('include_photo_in_qr'):
-            print("   ⚠️  Photo sera incluse dans le QR code (peut augmenter la complexité)")
-        else:
-            print("   ℹ️  Photo sera affichée sur l'image uniquement")
-    else:
-        print("📷 Aucune photo de profil valide")
-    
-    print("-" * 60)
-    
-    # Générer l'image
-    result = generate_qr_contact_image(
-        **contact_info,
-        **image_config
-    )
-    
-    if result:
-        print("\n✅ QR code généré avec succès !")
-    else:
-        print("❌ Échec de la génération du QR code")
-
-if __name__ == "__main__":
-    # Vérifier les dépendances
+    """Lance l'application"""
     try:
+        import customtkinter
         import qrcode
         from PIL import Image, ImageDraw, ImageFont
     except ImportError as e:
         print("❌ Dépendances manquantes !")
-        print("Installez les packages requis avec :")
-        print("pip install qrcode[pil] pillow")
-        exit(1)
+        print("Installez avec : pip install customtkinter qrcode[pil] pillow")
+        return
     
+    app = QRContactApp()
+    app.mainloop()
+
+
+if __name__ == "__main__":
     main()
