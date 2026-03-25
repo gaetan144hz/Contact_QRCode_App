@@ -162,7 +162,7 @@ class QRContactApp(ctk.CTk):
         self.style_var = ctk.StringVar(value="rounded")
         style_menu = ctk.CTkOptionMenu(
             style_frame,
-            values=["rounded", "square"],
+            values=["rounded"],
             variable=self.style_var,
             width=120,
             fg_color=self.color_accent_dark,
