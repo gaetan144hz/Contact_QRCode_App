@@ -2,126 +2,321 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Générateur de QR Code Contact</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>QR Contact · Générateur de QR code vCard</title>
     <meta
       name="description"
-      content="Créez un QR code de contact (vCard) personnalisé : nom, téléphone, email, site web, photo et couleur. Tout est généré dans votre navigateur."
+      content="Créez un QR code de contact (vCard) personnalisé : nom, téléphone, email, site web, photo et couleur. Gratuit, sans inscription, tout est généré dans votre navigateur."
     />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#070a13" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="css/style.css" />
+    <script>
+      try {
+        var savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+      } catch (e) {}
+    </script>
   </head>
   <body>
+    <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM18 18h3v3h-3zM18 14h3M14 18v3"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 2.6 2.8 15.4 0 18M12 3c-2.8 2.6-2.8 15.4 0 18"/></symbol>
+      <symbol id="i-type" viewBox="0 0 24 24"><path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/></symbol>
+      <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.7-1.2-3 0-1.1.9-2 2-2H17a4 4 0 0 0 4-4c0-4-4-7-9-7Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 13.2 7.6 4.6M15.8 6.2l-7.6 4.6"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19Z"/><path d="M12 10v4.5M12 17.2v.1"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    </svg>
+
+    <div class="backdrop" aria-hidden="true">
+      <span class="blob blob-1"></span>
+      <span class="blob blob-2"></span>
+      <span class="blob blob-3"></span>
+    </div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="./" aria-label="QR Contact, accueil">
+          <span class="brand-mark"><svg class="icon"><use href="#i-qr" /></svg></span>
+          <span class="brand-name">QR Contact</span>
+        </a>
+        <div class="topbar-actions">
+          <span class="pill pill-privacy"><svg class="icon"><use href="#i-lock" /></svg>100&nbsp;% local</span>
+          <button type="button" id="theme-toggle" class="icon-button" aria-label="Activer le thème sombre">
+            <svg class="icon icon-moon"><use href="#i-moon" /></svg>
+            <svg class="icon icon-sun"><use href="#i-sun" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
     <main class="page">
-      <header class="card hero">
-        <h1>Générateur de QR Code Contact</h1>
-        <p>Créez un QR code qui ajoute vos coordonnées au carnet d'adresses d'un simple scan.</p>
-      </header>
+      <section class="hero">
+        <p class="eyebrow reveal" style="--i: 0">Générateur de QR code vCard</p>
+        <h1 class="reveal" style="--i: 1">Vos coordonnées, <span class="gradient-text">en un seul scan</span></h1>
+        <p class="lead reveal" style="--i: 2">
+          Créez une carte de contact avec QR code : on la scanne avec un téléphone, et vos coordonnées s'ajoutent au carnet
+          d'adresses.
+        </p>
+        <ul class="hero-points reveal" style="--i: 3">
+          <li><svg class="icon"><use href="#i-check" /></svg>Gratuit</li>
+          <li><svg class="icon"><use href="#i-check" /></svg>Sans inscription</li>
+          <li><svg class="icon"><use href="#i-check" /></svg>Rien n'est envoyé sur un serveur</li>
+        </ul>
+      </section>
 
       <noscript>
-        <p class="card notice">Ce générateur a besoin de JavaScript pour fonctionner. Activez-le puis rechargez la page.</p>
+        <p class="panel notice">Ce générateur a besoin de JavaScript pour fonctionner. Activez-le puis rechargez la page.</p>
       </noscript>
 
-      <div class="layout">
-        <form id="contact-form" class="card form" autocomplete="on" novalidate>
-          <fieldset>
-            <legend>Informations de contact</legend>
-
-            <label class="field">
-              <span class="label">Nom complet <abbr title="obligatoire">*</abbr></span>
-              <input id="name" name="name" type="text" placeholder="Jean Dupont" autocomplete="name" required />
-            </label>
-
-            <label class="field">
-              <span class="label">Téléphone</span>
-              <input id="phone" name="phone" type="tel" placeholder="+33 6 12 34 56 78" autocomplete="tel" />
-            </label>
-
-            <label class="field">
-              <span class="label">Email</span>
-              <input id="email" name="email" type="email" placeholder="email@exemple.com" autocomplete="email" />
-            </label>
-
-            <label class="field">
-              <span class="label">Site web</span>
-              <input id="url" name="url" type="url" placeholder="https://exemple.com" autocomplete="url" />
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Personnalisation</legend>
-
-            <label class="field">
-              <span class="label">Titre</span>
-              <input id="title" name="title" type="text" placeholder="Mon Contact" autocomplete="off" />
-            </label>
-
-            <label class="field">
-              <span class="label">Description</span>
-              <input id="description" name="description" type="text" placeholder="Scannez ce QR code" autocomplete="off" />
-            </label>
-
-            <div class="field">
-              <div class="row">
-                <span class="label" id="photo-label">Photo de profil</span>
-                <div class="row-controls">
-                  <button type="button" id="photo-clear" class="button ghost" hidden>Retirer</button>
-                  <button type="button" id="photo-button" class="button secondary" aria-describedby="photo-name">
-                    Choisir
-                  </button>
-                </div>
+      <div class="workspace">
+        <form id="contact-form" class="editor" autocomplete="on" novalidate>
+          <section class="panel step reveal" style="--i: 4" aria-labelledby="step-contact">
+            <header class="step-header">
+              <span class="step-number" aria-hidden="true">1</span>
+              <div>
+                <h2 id="step-contact">Vos coordonnées</h2>
+                <p>Ce que le téléphone enregistrera dans le contact.</p>
               </div>
-              <input id="photo" name="photo" type="file" accept="image/*" class="visually-hidden" tabindex="-1" aria-labelledby="photo-label" />
-              <p id="photo-name" class="hint">Aucune photo</p>
-              <label class="checkbox">
-                <input id="include-photo" name="include-photo" type="checkbox" disabled />
-                <span>Inclure la photo dans le QR code</span>
+            </header>
+
+            <div class="field-grid">
+              <label class="field field-wide">
+                <span class="label">Nom complet <span class="required" aria-hidden="true">*</span></span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-user" /></svg>
+                  <input id="name" name="name" type="text" placeholder="Jean Dupont" autocomplete="name" required />
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="label">Téléphone</span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-phone" /></svg>
+                  <input id="phone" name="phone" type="tel" placeholder="+33 6 12 34 56 78" autocomplete="tel" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="label">Email</span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-mail" /></svg>
+                  <input id="email" name="email" type="email" placeholder="email@exemple.com" autocomplete="email" />
+                </span>
+              </label>
+
+              <label class="field field-wide">
+                <span class="label">Site web</span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-globe" /></svg>
+                  <input id="url" name="url" type="url" placeholder="https://exemple.com" autocomplete="url" />
+                </span>
               </label>
             </div>
+          </section>
 
-            <div class="field">
-              <div class="row">
-                <label class="label" for="color-hex">Couleur QR</label>
-                <div class="row-controls">
-                  <input id="color" type="color" value="#000000" aria-label="Choisir la couleur du QR code" />
-                  <input
-                    id="color-hex"
-                    name="color"
-                    type="text"
-                    value="#000000"
-                    maxlength="7"
-                    spellcheck="false"
-                    autocomplete="off"
-                    class="hex-input"
-                  />
-                </div>
+          <section class="panel step reveal" style="--i: 5" aria-labelledby="step-card">
+            <header class="step-header">
+              <span class="step-number" aria-hidden="true">2</span>
+              <div>
+                <h2 id="step-card">Votre carte</h2>
+                <p>Le texte et la photo affichés au-dessus du QR code.</p>
               </div>
-              <p id="color-warning" class="hint warning" hidden>
-                Couleur claire : le QR code et le texte risquent d'être difficiles à lire.
-              </p>
+            </header>
+
+            <div class="field-grid">
+              <label class="field">
+                <span class="label">Titre</span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-type" /></svg>
+                  <input id="title" name="title" type="text" placeholder="Mon Contact" autocomplete="off" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="label">Description</span>
+                <span class="input-wrap">
+                  <svg class="icon"><use href="#i-text" /></svg>
+                  <input id="description" name="description" type="text" placeholder="Scannez ce QR code" autocomplete="off" />
+                </span>
+              </label>
+
+              <div class="field field-wide">
+                <span class="label" id="photo-label">Photo de profil <span class="optional">facultatif</span></span>
+                <div class="photo-field">
+                  <label class="dropzone" id="dropzone">
+                    <input id="photo" name="photo" type="file" accept="image/*" class="visually-hidden" aria-labelledby="photo-label" />
+                    <span class="dropzone-media">
+                      <img id="photo-thumb" alt="" hidden />
+                      <svg class="icon" id="photo-icon"><use href="#i-image" /></svg>
+                    </span>
+                    <span class="dropzone-text">
+                      <strong id="photo-title">Glissez une photo ici</strong>
+                      <span id="photo-subtitle">ou cliquez pour parcourir · PNG, JPEG, WebP</span>
+                    </span>
+                  </label>
+                  <button type="button" id="photo-clear" class="icon-button icon-button-sm photo-clear" aria-label="Retirer la photo" hidden>
+                    <svg class="icon"><use href="#i-x" /></svg>
+                  </button>
+                </div>
+
+                <label class="switch">
+                  <input id="include-photo" name="include-photo" type="checkbox" role="switch" disabled />
+                  <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                  <span class="switch-text">
+                    <span>Intégrer la photo dans le QR code</span>
+                    <span class="hint">Elle s'affichera dans le contact, mais le QR code sera plus dense.</span>
+                  </span>
+                </label>
+              </div>
             </div>
-          </fieldset>
+          </section>
+
+          <section class="panel step reveal" style="--i: 6" aria-labelledby="step-color">
+            <header class="step-header">
+              <span class="step-number" aria-hidden="true">3</span>
+              <div>
+                <h2 id="step-color">Couleur</h2>
+                <p>Appliquée au QR code, au titre et à la description.</p>
+              </div>
+            </header>
+
+            <fieldset class="swatches">
+              <legend class="visually-hidden">Couleurs prédéfinies</legend>
+              <label class="swatch" style="--swatch: #000000"><input type="radio" name="color-preset" value="#000000" checked /><span class="visually-hidden">Noir</span></label>
+              <label class="swatch" style="--swatch: #334155"><input type="radio" name="color-preset" value="#334155" /><span class="visually-hidden">Ardoise</span></label>
+              <label class="swatch" style="--swatch: #1e3a8a"><input type="radio" name="color-preset" value="#1e3a8a" /><span class="visually-hidden">Bleu nuit</span></label>
+              <label class="swatch" style="--swatch: #4338ca"><input type="radio" name="color-preset" value="#4338ca" /><span class="visually-hidden">Indigo</span></label>
+              <label class="swatch" style="--swatch: #6d28d9"><input type="radio" name="color-preset" value="#6d28d9" /><span class="visually-hidden">Violet</span></label>
+              <label class="swatch" style="--swatch: #047857"><input type="radio" name="color-preset" value="#047857" /><span class="visually-hidden">Émeraude</span></label>
+              <label class="swatch" style="--swatch: #9f1239"><input type="radio" name="color-preset" value="#9f1239" /><span class="visually-hidden">Bordeaux</span></label>
+              <span class="swatch swatch-custom" id="custom-swatch" title="Couleur personnalisée">
+                <input id="color" type="color" value="#000000" aria-label="Couleur personnalisée" />
+              </span>
+              <span class="input-wrap hex-wrap">
+                <span class="hex-prefix" aria-hidden="true">#</span>
+                <input
+                  id="color-hex"
+                  name="color"
+                  type="text"
+                  value="000000"
+                  maxlength="7"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-label="Code couleur hexadécimal"
+                />
+              </span>
+            </fieldset>
+            <p id="color-warning" class="callout callout-warning" hidden>
+              <svg class="icon"><use href="#i-alert" /></svg>
+              Couleur claire : le QR code et le texte risquent d'être difficiles à lire.
+            </p>
+          </section>
         </form>
 
-        <section class="card preview" aria-labelledby="preview-title">
-          <h2 id="preview-title">Prévisualisation</h2>
-          <div class="preview-frame">
-            <canvas id="qr-canvas" role="img" aria-label="QR code de contact" hidden></canvas>
-            <p id="preview-placeholder" class="placeholder">Saisissez au moins un nom pour voir apparaître le QR code.</p>
-          </div>
-          <p id="status" class="hint status" aria-live="polite"></p>
-          <div class="actions">
-            <button type="button" id="download-png" class="button primary" disabled>Télécharger en PNG</button>
-            <button type="button" id="download-jpg" class="button secondary" disabled>Télécharger en JPEG</button>
-          </div>
-        </section>
-      </div>
+        <aside class="preview-column" id="preview-column" aria-labelledby="preview-title">
+          <div class="panel preview reveal" style="--i: 5">
+            <div class="preview-head">
+              <h2 id="preview-title">Aperçu</h2>
+              <span class="live-badge"><span class="live-dot"></span>En direct</span>
+            </div>
 
-      <footer class="footer">
-        Vos informations restent dans votre navigateur : rien n'est envoyé sur un serveur.
-      </footer>
+            <div class="stage" id="stage">
+              <div class="tilt" id="tilt">
+                <canvas id="qr-canvas" role="img" aria-label="QR code de contact" hidden></canvas>
+              </div>
+              <div class="empty-state" id="preview-placeholder">
+                <svg class="empty-qr" viewBox="0 0 120 120" aria-hidden="true">
+                  <rect x="8" y="8" width="32" height="32" rx="7" />
+                  <rect x="80" y="8" width="32" height="32" rx="7" />
+                  <rect x="8" y="80" width="32" height="32" rx="7" />
+                  <rect x="52" y="10" width="14" height="14" rx="3" />
+                  <rect x="52" y="34" width="10" height="10" rx="3" />
+                  <rect x="10" y="52" width="14" height="10" rx="3" />
+                  <rect x="34" y="52" width="24" height="14" rx="3" />
+                  <rect x="68" y="52" width="14" height="14" rx="3" />
+                  <rect x="92" y="54" width="20" height="10" rx="3" />
+                  <rect x="52" y="76" width="14" height="22" rx="3" />
+                  <rect x="76" y="80" width="12" height="12" rx="3" />
+                  <rect x="96" y="76" width="16" height="16" rx="3" />
+                  <rect x="78" y="100" width="34" height="12" rx="3" />
+                </svg>
+                <p id="placeholder-text">Saisissez votre nom pour faire apparaître votre carte.</p>
+              </div>
+            </div>
+
+            <div class="preview-meta" id="qr-meta" hidden>
+              <span class="density" id="density" data-level="low"></span>
+              <span class="meta-text" id="meta-text"></span>
+            </div>
+
+            <p id="status" class="status" aria-live="polite"></p>
+
+            <div class="actions">
+              <button type="button" id="download-png" class="btn btn-primary" disabled>
+                <svg class="icon"><use href="#i-download" /></svg>Télécharger en PNG
+              </button>
+              <div class="actions-row">
+                <button type="button" id="download-jpg" class="btn btn-secondary" disabled>
+                  <svg class="icon"><use href="#i-download" /></svg>JPEG
+                </button>
+                <button type="button" id="copy-image" class="btn btn-secondary" disabled hidden>
+                  <svg class="icon"><use href="#i-copy" /></svg>Copier
+                </button>
+                <button type="button" id="share-image" class="btn btn-secondary" disabled hidden>
+                  <svg class="icon"><use href="#i-share" /></svg>Partager
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
     </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <p class="footer-privacy">
+          <svg class="icon"><use href="#i-lock" /></svg>Vos informations restent dans votre navigateur : rien n'est envoyé sur un
+          serveur.
+        </p>
+        <p class="footer-links">
+          <a href="https://github.com/gaetan144hz/Contact_QRCode_App" target="_blank" rel="noopener">
+            <svg class="icon"><use href="#i-code" /></svg>Code source sur GitHub<svg class="icon icon-xs"><use href="#i-external" /></svg>
+          </a>
+          <span aria-hidden="true">·</span>
+          <span>QR code généré avec <a href="https://github.com/kazuhikoarase/qrcode-generator" target="_blank" rel="noopener">qrcode-generator</a></span>
+        </p>
+      </div>
+    </footer>
+
+    <div class="mobile-bar" id="mobile-bar" hidden>
+      <button type="button" id="mobile-preview" class="btn btn-secondary">
+        <svg class="icon"><use href="#i-eye" /></svg>Aperçu
+      </button>
+      <button type="button" id="mobile-download" class="btn btn-primary">
+        <svg class="icon"><use href="#i-download" /></svg>Télécharger
+      </button>
+    </div>
+
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
     <script src="vendor/qrcode.js"></script>
     <script src="js/generator.js"></script>
