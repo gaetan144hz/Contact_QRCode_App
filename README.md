@@ -21,3 +21,18 @@ In Contact_QRCode_App folder open terminal
 `.\venv\Scripts\activate`
 
 `pip install -r requirements.txt`
+
+# Web Version
+
+The `web/` folder is a port of the application as a static website: no Python, no server, no installation. The QR code is generated directly in the browser, so contact details are never sent anywhere.
+
+- **Try it locally**: double click on `web/index.html`, or serve the folder with `python -m http.server 8000 --directory web` and open http://localhost:8000
+- **Put it online**: upload the content of `web/` to any static host (GitHub Pages, Netlify, OVH, etc.)
+
+Compared to the desktop app:
+- the preview updates live as you type, and the image can be downloaded as PNG or JPEG
+- the image is rendered at twice the resolution, for sharper prints
+- when "Include photo in QR code" is checked, the photo is compressed until it fits in the QR code instead of being silently dropped
+- a warning is shown when the chosen color is too light to scan reliably
+
+The QR encoding uses [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), stored in `web/vendor/`.

@@ -1,0 +1,5 @@
+# Application bureau Python : inutile pour le site statique (dossier web/)
+qr_contact/
+*.pyw
+*.bat
+requirements.txt
