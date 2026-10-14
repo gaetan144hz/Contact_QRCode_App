@@ -1,6 +1,6 @@
 /*
- * Portage web de qr_contact/ui.py : formulaire, previsualisation en direct
- * et telechargement de l'image.
+ * Interface : formulaire, previsualisation en direct et telechargement
+ * de l'image.
  */
 (function () {
   "use strict";

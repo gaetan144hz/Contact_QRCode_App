@@ -1,38 +1,51 @@
-> [!WARNING]
-> Requiert [Python 3.14 or higher](https://www.python.org/downloads/)
+# Générateur de QR Code Contact
 
-# Basic Installation
+Site web qui crée un QR code de contact : une fois scanné avec un téléphone, il propose d'ajouter vos coordonnées au carnet d'adresses.
 
-- Double Click on "install_prerequisites.bat"
-- After prerequisite install double click on generator_contact_qr.pyw
-- Interface appear !
+L'image générée contient une photo de profil (facultative), un titre, une description et le QR code, dans la couleur de votre choix. Elle se télécharge en PNG ou en JPEG.
 
-> [!IMPORTANT]
-> prerequisite pip package like qrcode, image, customtkinter (you can double click on requiremetents.txt if you want to see all package include), by default pip package are install in youre appdata "C:\Users\USERNAME\AppData\Local\Programs\Python\Python314\Lib\site-packages" 
-
-# Virtual Environnement Installation
 > [!NOTE]
-> if you don't want to install pip package in you're appdata user
+> Tout est calculé dans le navigateur : aucune donnée n'est envoyée à un serveur.
 
-In Contact_QRCode_App folder open terminal
+## Fonctionnalités
 
-`python -m venv venv`
+- **Contact** : nom (obligatoire), téléphone, email, site web, encodés au format vCard 3.0
+- **Personnalisation** : titre, description, photo de profil ronde, couleur du QR code et du texte
+- **Photo dans le QR code** (option) : la photo est compressée pour tenir dans le QR code, qui devient alors plus dense
+- **Aperçu en direct** pendant la saisie
+- **Export** en PNG ou JPEG, en double résolution pour l'impression
+- **Avertissement** si la couleur est trop claire pour être scannée de façon fiable
 
-`.\venv\Scripts\activate`
+## Lancer le site en local
 
-`pip install -r requirements.txt`
+Aucune installation n'est nécessaire, il suffit d'ouvrir `web/index.html` dans un navigateur.
 
-# Web Version
+Pour le servir comme en production, avec n'importe quel serveur de fichiers statiques :
 
-The `web/` folder is a port of the application as a static website: no Python, no server, no installation. The QR code is generated directly in the browser, so contact details are never sent anywhere.
+```bash
+python -m http.server 8000 --directory web
+```
 
-- **Try it locally**: double click on `web/index.html`, or serve the folder with `python -m http.server 8000 --directory web` and open http://localhost:8000
-- **Put it online**: upload the content of `web/` to any static host (GitHub Pages, Netlify, OVH, etc.)
+Puis ouvrir http://localhost:8000.
 
-Compared to the desktop app:
-- the preview updates live as you type, and the image can be downloaded as PNG or JPEG
-- the image is rendered at twice the resolution, for sharper prints
-- when "Include photo in QR code" is checked, the photo is compressed until it fits in the QR code instead of being silently dropped
-- a warning is shown when the chosen color is too light to scan reliably
+## Mise en ligne
 
-The QR encoding uses [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 (MIT), stored in `web/vendor/`.
+Le site est entièrement statique : le dossier `web/` peut être publié tel quel sur n'importe quel hébergeur (Vercel, GitHub Pages, Netlify, OVH…).
+
+Pour Vercel, `vercel.json` est déjà configuré : il publie le dossier `web/` et ajoute quelques en-têtes de sécurité. Il suffit d'importer le dépôt dans Vercel, sans commande de build.
+
+## Structure
+
+```
+web/
+├── index.html         page et formulaire
+├── css/style.css      styles (clair et sombre, adapté au mobile)
+├── js/generator.js    vCard et dessin de l'image
+├── js/app.js          interface : formulaire, aperçu, téléchargement
+├── vendor/qrcode.js   encodage du QR code
+└── favicon.svg
+```
+
+## Crédits
+
+L'encodage du QR code repose sur [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 de Kazuhiko Arase (licence MIT), copié dans `web/vendor/`.

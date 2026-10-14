@@ -1,6 +1,6 @@
 /*
- * Portage web de qr_contact/core.py : construction de la vCard et
- * composition de l'image finale (photo, titre, description, QR code).
+ * Construction de la vCard et composition de l'image finale
+ * (photo, titre, description, QR code).
  * Tout est calcule dans le navigateur, aucune donnee n'est envoyee.
  */
 (function (global) {
@@ -9,7 +9,7 @@
   // Les accents (é, ç...) doivent etre encodes en UTF-8 dans le QR code.
   qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
 
-  // Equivalent de ImageConfig (qr_contact/models.py).
+  // Couleurs et tailles de police de l'image generee.
   const CONFIG = {
     backgroundColor: "#ffffff",
     qrBackground: "#ffffff",
@@ -19,7 +19,7 @@
     fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
   };
 
-  // Equivalent des constantes de ContactQRGenerator.
+  // Mise en page de l'image, en pixels (avant mise a l'echelle).
   const LAYOUT = {
     padding: 50,
     titleHeight: 80,
@@ -32,7 +32,7 @@
     border: 4,
   };
 
-  // Equivalent de VCardGenerator : au-dela de cette taille la photo n'est pas
+  // Photo integree a la vCard : au-dela de cette taille elle n'est pas
   // integree, sinon le QR code devient trop dense pour etre scanne.
   const VCARD_PHOTO = {
     maxBase64Length: 2000,
@@ -126,8 +126,7 @@
     ctx.stroke();
   }
 
-  // Contrairement a la version bureau, le texte trop long est reduit pour
-  // rester dans l'image au lieu de deborder.
+  // Le texte trop long est reduit pour rester dans l'image.
   function drawCenteredText(ctx, text, y, fontSize, color, width) {
     const maxWidth = width - LAYOUT.padding * 2;
     let size = fontSize;
@@ -143,7 +142,7 @@
     ctx.fillText(text, width / 2, y, maxWidth);
   }
 
-  // Style "rounded" de QRStyler : coins arrondis sur le bloc du QR code.
+  // QR code avec coins arrondis sur son bloc (marge comprise).
   function drawQr(ctx, qr, x, y, size, color) {
     const box = LAYOUT.boxSize;
     const offset = LAYOUT.border * box;
